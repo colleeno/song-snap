@@ -5,7 +5,7 @@
     <p>{{ playlist.description }}</p>
     <ul>
       <li v-for="track in playlist.tracks.items" :key="track.track.id">
-        {{ track.track.name }}
+         {{ jumbleWords(track.track.name) }} | {{ track.track.name }}
       </li>
     </ul>
   </div>  
@@ -18,20 +18,15 @@ import qs from 'qs';
 export default {
   data () {
     return {
-      clientId: import.meta.env.VITE_APP_SPOTIFY_API_ID,
-      clientSecret: import.meta.env.VITE_APP_SPOTIFY_CLIENT_SECRET,
       playlist: null,
     }
   },
-  mounted () {
-    // todo: move this out of mounted
-    // add input for id and button to fetch playlist
-    // add gamification
-    const client_id = this.clientId;
-    const client_secret = this.clientSecret;
-    const auth_token = btoa(`${client_id}:${client_secret}`);
-
-    const getAuth = async () => {
+  created () {
+    this.fetchPlaylist();
+  },
+  methods: {
+    async getAuth() {
+      const auth_token = btoa(`${import.meta.env.VITE_APP_SPOTIFY_API_ID}:${import.meta.env.VITE_APP_SPOTIFY_CLIENT_SECRET}`);
       try {
         // request access token from spotify api
         const token_url = 'https://accounts.spotify.com/api/token';
@@ -47,9 +42,8 @@ export default {
       } catch(error){
         console.log(error);
       }
-    }
-
-    const getPlaylist = async (accessToken, playlistId) => {
+    },
+    async getPlaylist(accessToken, playlistId) {
       // fetch playlist, using access token
       try {
         const response = await axios.get(`https://api.spotify.com/v1/playlists/${playlistId}`, {
@@ -62,13 +56,29 @@ export default {
       } catch(error){
         console.log(error);
       }
-    }
-
-    getAuth().then(accessToken => {
-      const playlistId = '5FErwRYsAxu9qev9uJZGGB?si=b6460c7ed7e5410b';
-      getPlaylist(accessToken, playlistId);
-    });
-
-  },
+    },
+    fetchPlaylist () {
+      this.getAuth().then(accessToken => {
+        const playlistId = '5FErwRYsAxu9qev9uJZGGB?si=b6460c7ed7e5410b';
+        this.getPlaylist(accessToken, playlistId);
+      });
+    },
+    jumbleWords(str) {
+      const parts = str.split(/(\(.*?\))/);
+      return parts.map(part => {
+        if (part.startsWith('(')) {
+          // if part is in parens, remove the parens, jumble the words inside the parens, then add back
+          const withoutParens = part.slice(1, -1);
+          const withJumbledWords = withoutParens.split(' ').map(word => this.jumble(word)).join(' ');
+          return '(' + withJumbledWords + ')';
+        } else {
+          return part.split(' ').map(word => this.jumble(word)).join(' ');
+        }
+      }).join('');
+    },
+    jumble(word) {
+      return word.split('').sort(() => Math.random() - 0.5).join('');
+    },
+  }
 };
 </script>
